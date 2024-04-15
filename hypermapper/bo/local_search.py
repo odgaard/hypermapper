@@ -72,10 +72,10 @@ def get_parameter_neighbors(
                     )
                     neighbors.append(neighbor)
         else:
-            for value in parameter.get_discrete_values():
-                if configuration[parameter_idx] != value:
+            for i in range(parameter.get_size()):
+                if configuration[parameter_idx] != i:
                     neighbor = configuration.clone()
-                    neighbor[parameter_idx] = float(value)
+                    neighbor[parameter_idx] = float(i)
                     neighbors.append(neighbor)
 
     elif isinstance(parameter, OrdinalParameter):

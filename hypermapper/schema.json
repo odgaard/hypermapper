@@ -412,7 +412,7 @@
       "type": "number"
     },
     "local_search_random_points": {
-      "default": 30000,
+      "default": 5000,
       "description": "number of random points for the multi-start local search used to optimize the acquisition functions.",
       "type": "integer"
     },
