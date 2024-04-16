@@ -113,6 +113,23 @@
       "required": [
         "mode"
       ]
+    },
+    "grpc": {
+      "additionalProperties": false,
+      "properties": {
+        "server_addresses": {
+          "description": "List of addresses of the servers to connect to. Example: ['localhost']",
+          "type": "array"
+        },
+        "mode": {
+          "enum": [
+            "grpc"
+          ]
+        }
+      },
+      "required": [
+        "mode"
+      ]
     }
   },
   "models": {
@@ -264,6 +281,9 @@
         },
         {
           "$ref": "#/hypermapper_modes/stateless"
+        },
+        {
+          "$ref": "#/hypermapper_modes/grpc"
         }
       ],
       "type": "object"

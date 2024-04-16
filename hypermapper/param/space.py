@@ -10,6 +10,13 @@ import networkx as nx
 import numpy as np
 import torch
 
+import ast
+import grpc
+from . import config_service_pb2 as cs
+from . import config_service_pb2_grpc as cs_grpc
+import pandas as pd
+import random
+
 import hypermapper.param.constraints as constraints
 from hypermapper.param.chain_of_trees import ChainOfTrees, Node, Tree
 from hypermapper.param.data import DataArray
@@ -586,6 +593,9 @@ class Space:
             data_array = self.run_configurations_client_server(
                 configurations, settings["output_data_file"]
             )
+        elif settings["hypermapper_mode"]["mode"] == "grpc":
+            data_array = self.run_configurations_grpc(
+                configurations, settings["output_data_file"], settings["hypermapper_mode"]["server_addresses"])
 
         if torch.any(torch.isnan(data_array.metrics_array)) or torch.any(
             torch.isnan(data_array.metrics_array)
@@ -593,6 +603,204 @@ class Space:
             raise Exception("NaN values in output from blackbox function. Exiting.")
 
         return data_array
+
+    def send_shutdown_signal(self, server_address):
+        with grpc.insecure_channel(f"{server_address}:50050") as channel:
+            stub = cs_grpc.ConfigurationServiceStub(channel)
+            request = cs.ShutdownRequest(shutdown=True)
+            response = stub.Shutdown(request)
+            if response.success:
+                print(f"Shutdown signal sent successfully to {server_address}")
+            else:
+                print(f"Failed to send shutdown signal to {server_address}")
+
+    def process_server_configs(self, server_address, server_configs_grpc, server_configs, output_data_file):
+        with grpc.insecure_channel(f"{server_address}:50050") as channel:
+            stub = cs_grpc.ConfigurationServiceStub(channel)
+            server_metrics_list = []
+            server_timestamps_list = []
+            server_feasibility_list = []
+            for config in server_configs_grpc:
+                request = cs.ConfigurationRequest(
+                    configurations=config,
+                    output_data_file=output_data_file
+                )
+                response = stub.RunConfigurationsClientServer(request)
+                server_metrics_list.append([metric.values for metric in response.metrics])
+                server_timestamps_list.append(response.timestamps.timestamp)
+                server_feasibility_list.append(response.feasible.value)
+
+        tensor_metrics_list = []
+        for config in server_metrics_list:
+            config_metrics = []
+            for metric in config:
+                if len(metric) != 1:
+                    config_metrics.append(metric)
+            tensor_metrics_list.append(config_metrics)
+        print("server_metrics_list:", server_metrics_list)
+        return {
+            'hostname': [server_address] * len(server_configs_grpc),
+            'metrics': server_metrics_list,
+            'timestamps': torch.tensor(server_timestamps_list),
+            'feasibility': torch.tensor(server_feasibility_list)
+        }
+
+    def calculate_server_args(self, config_dicts, server_addresses, output_data_file, start, end):
+        configurations_grpc = [cs.Configuration(parameters=config_dict) for config_dict in config_dicts[start:end]]
+        total_configs = len(configurations_grpc)
+        num_servers = len(server_addresses)
+
+        # Step 1: Determine base number of configurations per server
+        base_configs_per_server = total_configs // num_servers
+
+        # Step 2: Determine the remainder
+        remainder = total_configs % num_servers
+
+        server_args = []
+        config_index = 0
+        for server_address in server_addresses:
+            # Step 3: Distribute base number of configurations to each server
+            end_index = config_index + base_configs_per_server
+            # Step 4: Distribute remainder configurations one by one
+            if remainder > 0:
+                end_index += 1
+                remainder -= 1
+            server_configs_grpc = configurations_grpc[config_index:end_index]
+            server_configs = config_dicts[config_index:end_index]
+            server_args.append((server_address, server_configs_grpc, server_configs, output_data_file))
+            config_index = end_index  # Update the index for next iteration
+        return server_args
+
+    def run_configurations_grpc(self, configurations: torch.Tensor, output_data_file: str, server_addresses: List[str]):
+
+        def value_to_param(value, param_type):
+            if param_type == 'ordinal':
+                return cs.Parameter(ordinal_param=cs.OrdinalParam(value=int(value)))
+
+            if param_type == 'real':
+                return cs.Parameter(real_param=cs.RealParam(value=float(value)))
+
+            if param_type == 'integer':
+                return cs.Parameter(integer_param=cs.IntegerParam(value=int(value)))
+
+            if param_type == 'categorical':
+                return cs.Parameter(categorical_param=cs.CategoricalParam(value=int(value)))
+
+            if param_type == 'string':
+                return cs.Parameter(string_param=cs.StringParam(value=str(value)))
+
+            if param_type == 'permutation':
+                # Convert the string representation of a tuple to an actual tuple
+                tuple_value = ast.literal_eval(value)
+                return cs.Parameter(permutation_param=cs.PermutationParam(values=list(tuple_value)))
+            raise ValueError(f"Unknown parameter type: {param_type}")
+
+        config_list = configurations.tolist()
+        config_list = self.convert(configurations, "internal", "string")
+
+        random.shuffle(config_list)
+
+        file_names = output_data_file.split(".")
+        seed = self.seed
+        output_data_file = "." + file_names[1] + f"_{seed}." + file_names[2]
+
+        data_dict = {name: [] for name in self.parameter_names}  # Initialize empty lists for each parameter name
+
+        for config in config_list:
+            for name, value, _ in zip(self.parameter_names, config, self.parameter_types):
+                data_dict[name].append(value)  # Append values to respective lists in data_dict
+
+        config_df = pd.DataFrame(data_dict)  # Convert data_dict to DataFrame
+
+        config_dicts_grpc = [
+            {
+                name: value_to_param(value, param_type)
+                for name, value, param_type in zip(self.parameter_names, config, self.parameter_types)
+            }
+            for config in config_list
+        ]
+
+        results = []
+
+        for i in range(len(config_list)):
+            server_args = self.calculate_server_args(config_dicts_grpc, server_addresses, output_data_file, i, i+1)
+            results.append(self.process_server_configs(server_args[0][0], server_args[0][1], server_args[0][2], server_args[0][3]))
+
+
+        # List to hold DataFrames from each result
+        dfs = []
+
+        for metrics_dict in results:
+            # Create a new DataFrame for each metrics_dict
+            df = pd.DataFrame()
+
+            # Assume metrics_dict contains the keys 'metrics', 'timestamps', and 'feasibility'
+            # and that each value is a list of equal length
+            num_rows = len(metrics_dict['metrics'])
+
+            # Populate DataFrame with values from metrics_dict
+            df['hostname'] = [metrics_dict['hostname'][idx] for idx in range(num_rows)]
+
+            benchmark_type = "rise"
+
+            if benchmark_type == "taco":
+                df['compute_time'] = [metrics_dict['metrics'][idx][0][0] for idx in range(num_rows)]
+                #df['compute_times'] = [metrics_dict['metrics'][idx][1] for idx in range(num_rows)]
+                #df['energy_consumptions'] = [metrics_dict['metrics'][idx][2] for idx in range(num_rows)]
+                df['Timestamps'] = [metrics_dict['timestamps'][idx].item() for idx in range(num_rows)]
+                #df['Feasibility'] = [metrics_dict['feasibility'][idx].item() for idx in range(num_rows)]
+            if benchmark_type == "rise":
+                df['compute_time'] = [metrics_dict['metrics'][idx][0][0] for idx in range(num_rows)]
+                #df['cpu_energy'] = [metrics_dict['metrics'][idx][1][0] for idx in range(num_rows)]
+                #df['gpu_energy'] = [metrics_dict['metrics'][idx][2][0] for idx in range(num_rows)]
+                #df['codegen_time'] = [metrics_dict['metrics'][idx][3][0] for idx in range(num_rows)]
+                #df['compilation_time'] = [metrics_dict['metrics'][idx][4][0] for idx in range(num_rows)]
+                #df['execution_time'] = [metrics_dict['metrics'][idx][5][0] for idx in range(num_rows)]
+
+            # Append DataFrame to list
+            dfs.append(df)
+
+        new_metric_results = []
+        for server_results in results:
+            new_server_results = []
+            for config in server_results["metrics"]:
+                for metric in config:
+                    if len(metric) == 1:
+                        new_server_results.append([metric])
+                    else:
+                        new_server_results.append(metric)
+            new_metric_results.append(torch.tensor(new_server_results))
+        summed_result = []
+        for r in new_metric_results:
+            #print(f"r: {r}")
+            sum = 0
+            for metric in r:
+                #print(f"metric: {metric[0][0]}")
+                sum += metric[0][0]
+            summed_result.append([sum/len(r)])
+
+        old_all_metrics = torch.cat([r[0] for r in new_metric_results])
+        all_metrics = torch.tensor(summed_result)
+        all_timestamps = torch.cat([result['timestamps'] for result in results])
+        all_feasibility = torch.cat([result['feasibility'] for result in results])
+
+        new_data_array = DataArray(
+            configurations,
+            all_metrics,
+            all_timestamps,
+            all_feasibility,
+            torch.Tensor()  # Assuming this is the desired tensor; replace as needed
+        )
+
+        write_data_array(self, new_data_array, output_data_file)
+
+        shutdown_enabled = False
+        if shutdown_enabled:# Shut down all servers
+            for server_address in server_addresses:
+                self.send_shutdown_signal(server_address)
+
+        torch.set_num_threads(1)
+        return new_data_array
 
     def run_configurations_client_server(
         self,

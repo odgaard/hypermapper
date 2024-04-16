@@ -36,6 +36,7 @@ def settings_check_bo(
         "default",
         "client-server",
         "stateless",
+        "grpc"
     ]:
         print("Unrecognized hypermapper mode:", settings["hypermapper_mode"])
         raise SystemExit
