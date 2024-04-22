@@ -24,8 +24,9 @@ def compute_concordant_pairs(x1: Tensor, x2: Tensor) -> Tensor:
     order_diffs = ((x1.unsqueeze(-2) - x1.unsqueeze(-1))
             * (x2.unsqueeze(-2) - x2.unsqueeze(-1))
     )
+    print("Tril start")
     concordant_pairs = (order_diffs.tril() > 0).sum(dim=[-1, -2])
-
+    print("Tril done, RIP")
     return concordant_pairs
 
 
@@ -43,10 +44,14 @@ class MallowsKernel(Kernel):
     def forward(self, x1: Tensor, x2: Tensor, diag: bool = False, last_dim_is_batch: bool = False, **params) -> Tensor:
 
         max_pairs = (x1.shape[-1] * (x1.shape[-1] - 1)) / 2
+        print(x1.shape, x2.shape)
+        # TODO diag here already!   
         concordant_pairs = compute_concordant_pairs(x1, x2)
         discordant_pairs = max_pairs - concordant_pairs
+
         if diag:
             return torch.diagonal(torch.exp(-discordant_pairs / self.lengthscale), dim1=-1, dim2=-2)
+        
         return torch.exp(-discordant_pairs / (max_pairs * self.lengthscale))
     
 
@@ -75,8 +80,7 @@ class WeightedAdditiveKernel(Kernel):
     """Implementation of the CoCaBO weighted additive kernel.
     """
 
-    has_lengthscale = True
-
+    has_lengthscale = False
 
     def __init__(self, kernel_1: Kernel, kernel_2: Kernel, **kwargs):
         super(WeightedAdditiveKernel, self).__init__(has_lengthscale=True, ard_num_dims=None, **kwargs)
@@ -85,7 +89,7 @@ class WeightedAdditiveKernel(Kernel):
         self.register_parameter(name="aug_lambda", parameter=torch.nn.Parameter(torch.tensor(0.0)))
         self.register_prior(
             name="aug_lambda_prior", 
-            prior=NormalPrior(0, 4), 
+            prior=NormalPrior(0, 2), 
             param_or_closure=self._aug_lambda_param, 
             setting_closure=self._aug_lambda_closure)
 

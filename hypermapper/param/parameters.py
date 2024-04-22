@@ -775,7 +775,7 @@ class PermutationParameter(Parameter):
                 [f"{self.name}_{i}" for i in range(self.n_elements)],
                 [
                     [
-                        self.get_permutation_value(int(d)).index(i) / self.n_elements
+                        self.get_permutation_value(int(d)).index(i) / (self.n_elements - 1)
                         for i in range(self.n_elements)
                     ]
                     for d in data

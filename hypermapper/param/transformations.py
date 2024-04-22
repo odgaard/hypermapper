@@ -14,7 +14,8 @@ def transform_data(
     param_space: Space,
     objective_means: torch.Tensor,
     objective_stds: torch.Tensor,
-    return_dim_indices: bool = False
+    return_dim_indices: bool = False,
+    minimize: bool  = True,
 ) -> Tuple[torch.Tensor, torch.Tensor, List[str]]:
     """
     Transform the data array into a format that can be used by the GP models. It normalizes and the input, standardizes the output
@@ -49,6 +50,8 @@ def transform_data(
             sys.stdout.write_to_logfile(
                 "Warning: no statistics provided, skipping objective standardization.\n"
             )
+    if minimize: 
+        Y = -Y
     if return_dim_indices:
         return X, Y, parametrization_names, dims_indices
     

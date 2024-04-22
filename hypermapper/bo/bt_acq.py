@@ -38,7 +38,7 @@ class BotorchAcquisitionFunction: # well, basically only the qEI-family
             feasibility_indicator * 
             (feasibility_indicator >= feasibility_threshold)
         )
-
+        return acqval
 
 
 class qLogNEI(BotorchAcquisitionFunction):
@@ -48,7 +48,7 @@ class qLogNEI(BotorchAcquisitionFunction):
     def __init__(self, model):
         model = model
         X_baseline = prune_inferior_points(model, model.train_inputs[0])
-        self.acq = self.acq_class.__init__(model, X_baseline)
+        self.acq = self.acq_class(model, X_baseline)
 
 
 class qLogNEHVI(BotorchAcquisitionFunction):
@@ -57,6 +57,6 @@ class qLogNEHVI(BotorchAcquisitionFunction):
 
     def __init__(self, model):
         model = model
-        X_baseline = prune_inferior_points(model, model.train_inputs[0])
-        ref_point = torch.zeros(model.train_targets.shape[0])
-        self.acq = self.acq_class.__init__(model, X_baseline, ref_point)
+        
+        ref_point = [0, 0]
+        self.acq = self.acq_class(model, ref_point, model.train_inputs[0][0], prune_baseline=True)

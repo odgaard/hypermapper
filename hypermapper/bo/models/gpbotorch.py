@@ -70,8 +70,6 @@ class GpBotorch(botorch.models.SingleTaskGP, Model):
             ),
         )
 
-        ExactGP.__init__(
-            self, train_inputs=X, train_targets=y, likelihood=likelihood)
         if settings["lengthscale_prior"]["name"].lower() == "gamma":
             alpha = float(settings["lengthscale_prior"]["parameters"][0])
             beta = float(settings["lengthscale_prior"]["parameters"][1])
@@ -107,51 +105,52 @@ class GpBotorch(botorch.models.SingleTaskGP, Model):
         """
         # mean_module = gpytorch.means.ZeroMean()
         mean_module = gpytorch.means.ConstantMean()
+        if len(permutation_dims) > 0:
+            if perm_settings in ["spearman", "hamming", "kendall"]:
+                num_kernel = gpytorch.kernels.RBFKernel(
+                    lengthscale_prior=lengthscale_prior,
+                    ard_num_dims=len(numerical_dims + categorical_dims),
+                    active_dims=numerical_dims + categorical_dims,
+                )
+                perm_kernel = gpytorch.kernels.RBFKernel(
+                    lengthscale_prior=lengthscale_prior,
+                    ard_num_dims=(len(permutation_dims)),
+                    active_dims=permutation_dims,
+                )
+                base_kernel = num_kernel * perm_kernel
 
-        self.ard_size = X.shape[-1]
-        perm_settings = get_permutation_settings(settings)
-        if perm_settings in ["spearman", "hamming", "kendall"]:
-            num_kernel = gpytorch.kernels.RBFKernel(
-                lengthscale_prior=lengthscale_prior,
-                ard_num_dims=len(numerical_dims + categorical_dims),
-                active_dims=numerical_dims + categorical_dims,
-            )
-            perm_kernel = gpytorch.kernels.RBFKernel(
-                lengthscale_prior=lengthscale_prior,
-                ard_num_dims=(len(permutation_dims)),
-                active_dims=permutation_dims,
-            )
-            base_kernel = num_kernel * perm_kernel
-
-        elif perm_settings == "mallows":
-            num_kernel = gpytorch.kernels.RBFKernel(
-                lengthscale_prior=lengthscale_prior,
-                ard_num_dims=len(numerical_dims + categorical_dims),
-                active_dims=numerical_dims + categorical_dims,
-            )                
+            elif perm_settings == "mallows":
+                num_kernel = gpytorch.kernels.RBFKernel(
+                    lengthscale_prior=lengthscale_prior,
+                    ard_num_dims=len(numerical_dims + categorical_dims),
+                    active_dims=numerical_dims + categorical_dims,
+                )                
+                perm_kernel = MallowsKernel(
+                    lengthscale_prior=lengthscale_prior,    
+                    active_dims=permutation_dims,
+                )
             
-            perm_kernel = MallowsKernel(
-                lengthscale_prior=lengthscale_prior,    
-                active_dims=permutation_dims,
-            )
-        
-        elif perm_settings == "transformed_overlap":
-            num_kernel = gpytorch.kernels.RBFKernel(
-                lengthscale_prior=lengthscale_prior,
-                ard_num_dims=len(numerical_dims + categorical_dims),
-                active_dims=numerical_dims + categorical_dims,
-            )                
+            elif perm_settings == "transformed_overlap":
+                num_kernel = gpytorch.kernels.RBFKernel(
+                    lengthscale_prior=lengthscale_prior,
+                    ard_num_dims=len(numerical_dims + categorical_dims),
+                    active_dims=numerical_dims + categorical_dims,
+                )                
+                perm_kernel = TransformedOverlapKernel(
+                    lengthscale_prior=lengthscale_prior,
+                    active_dims=permutation_dims,
+                )
             
-            perm_kernel = TransformedOverlapKernel(
-                lengthscale_prior=lengthscale_prior,
-                active_dims=permutation_dims,
-            )
-        
-        if settings["parameterize_lambda"]:
-            base_kernel = WeightedAdditiveKernel(perm_kernel, num_kernel)
+            if settings["parameterize_lambda"]:
+                base_kernel = WeightedAdditiveKernel(perm_kernel, num_kernel)
+            else:
+                base_kernel = num_kernel * perm_kernel
         else:
-            base_kernel = num_kernel * perm_kernel
-            
+            base_kernel = gpytorch.kernels.RBFKernel(
+                lengthscale_prior=lengthscale_prior,
+                ard_num_dims=len(numerical_dims + categorical_dims),
+                active_dims=numerical_dims + categorical_dims,
+            )
         covar_module = gpytorch.kernels.ScaleKernel(
             base_kernel,
             outputscale_prior=outputscale_prior,
@@ -166,7 +165,7 @@ class GpBotorch(botorch.models.SingleTaskGP, Model):
             botorch.models.SingleTaskGP.__init__(
                 self,
                 X,
-                y.unsqueeze(1),
+                y,
                 likelihood=likelihood,
                 covar_module=covar_module,
                 mean_module=mean_module,
@@ -205,6 +204,7 @@ class GpBotorch(botorch.models.SingleTaskGP, Model):
         """
         mll = ExactMarginalLogLikelihood(self.likelihood, self)
         fit_gpytorch_mll(mll)
+
         return None
 
 

@@ -57,76 +57,26 @@ def generate_mono_output_regression_models(
         - hyperparameters
     """
     start_time = time.time()
-
+    minimize = settings["minimize"]
     X, Y, parametrization_names, param_dims = transform_data(
-        settings, data_array, param_space, objective_means, objective_stds, return_dim_indices=True,
+        settings, 
+        data_array, 
+        param_space, 
+        objective_means, 
+        objective_stds, 
+        return_dim_indices=True, 
+        minimize=minimize
     )
 
-    models = []
     hyperparameters = None
-    for i, metric in enumerate(param_space.metric_names):
-        y = Y[:, i]
-        if settings["models"]["model"] == "gaussian_process":
-            if settings["GP_model"] == "gpy":
-                from hypermapper.bo.models.gpgpy import GpGpy
-
-                model = GpGpy(settings, X, y)
-            elif settings["GP_model"] == "botorch":
-                from hypermapper.bo.models.gpbotorch import GpBotorch
-
-                model = GpBotorch(settings, X, y, param_dims)
-            elif settings["GP_model"] == "gpytorch":
-                from hypermapper.bo.models.gpgpytorch import GpGpytorch
-
-                model = GpGpytorch(settings, X, y)
-            elif settings["GP_model"] == "botorch_fixed":
-                from hypermapper.bo.models.gpbotorch import GpBotorchFixed
-
-                std_estimate = transform_estimate(
-                    settings, data_array.std_estimate, objective_means, objective_stds
-                )
-                model = GpBotorchFixed(settings, X, y, std_estimate)
-            elif settings["GP_model"] == "botorch_heteroskedastic":
-                from hypermapper.bo.models.gpbotorch import GpBotorchHeteroskedastic
-
-                std_estimate = transform_estimate(
-                    settings, data_array.std_estimate, objective_means, objective_stds
-                )
-                model = GpBotorchHeteroskedastic(settings, X, y, std_estimate)
-            else:
-                raise Exception("Unrecognized GP model type:", settings["GP_model"])
-            if reoptimize:
-                hyperparameters = model.fit(settings, previous_hyperparameters)
-                if hyperparameters is None:
-                    return None, None
-            else:
-                model.covar_module.base_kernel.lengthscale = tuple(
-                    previous_hyperparameters["lengthscale"]
-                )
-                model.covar_module.outputscale = previous_hyperparameters["variance"]
-                model.likelihood.noise_covar.noise = previous_hyperparameters["noise"]
-
-        elif settings["models"]["model"] == "random_forest":
-            model = RFRegressionModel(
-                n_estimators=settings["models"]["number_of_trees"],
-                max_features=settings["models"]["max_features"],
-                bootstrap=settings["models"]["bootstrap"],
-                min_samples_split=settings["models"]["min_samples_split"],
-                use_all_data_to_fit_mean=settings["models"]["use_all_data_to_fit_mean"],
-                use_all_data_to_fit_variance=settings["models"][
-                    "use_all_data_to_fit_variance"
-                ],
-                add_linear_std=settings["models"]["add_linear_std"],
-            )
-            model.fit_rf(X, y)
-        else:
-            raise Exception("Unrecognized model type:", settings["models"]["model"])
-
-        models.append(model)
-    sys.stdout.write_to_logfile(
-        ("End of training - Time %10.2f sec\n" % (time.time() - start_time))
-    )
-    return models, hyperparameters
+    from hypermapper.bo.models.gpbotorch import GpBotorch
+    model = GpBotorch(settings, X, Y, param_dims)
+    if reoptimize:
+        hyperparameters = model.fit(settings, previous_hyperparameters)
+        if hyperparameters is None:
+            return model, None
+            
+    return model, hyperparameters
 
 
 def generate_classification_model(

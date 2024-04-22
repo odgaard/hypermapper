@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Tuple, Callable, Optional
 import networkx as nx
 import numpy as np
 import torch
+from torch import Tensor
 
 import ast
 import grpc
@@ -596,7 +597,6 @@ class Space:
         elif settings["hypermapper_mode"]["mode"] == "grpc":
             data_array = self.run_configurations_grpc(
                 configurations, settings["output_data_file"], settings["hypermapper_mode"]["server_addresses"])
-
         if torch.any(torch.isnan(data_array.metrics_array)) or torch.any(
             torch.isnan(data_array.metrics_array)
         ):
@@ -737,7 +737,6 @@ class Space:
             # Assume metrics_dict contains the keys 'metrics', 'timestamps', and 'feasibility'
             # and that each value is a list of equal length
             num_rows = len(metrics_dict['metrics'])
-
             # Populate DataFrame with values from metrics_dict
             df['hostname'] = [metrics_dict['hostname'][idx] for idx in range(num_rows)]
 
@@ -769,18 +768,9 @@ class Space:
                         new_server_results.append([metric])
                     else:
                         new_server_results.append(metric)
-            new_metric_results.append(torch.tensor(new_server_results))
-        summed_result = []
-        for r in new_metric_results:
-            #print(f"r: {r}")
-            sum = 0
-            for metric in r:
-                #print(f"metric: {metric[0][0]}")
-                sum += metric[0][0]
-            summed_result.append([sum/len(r)])
+            new_metric_results.append(new_server_results)
 
-        old_all_metrics = torch.cat([r[0] for r in new_metric_results])
-        all_metrics = torch.tensor(summed_result)
+        all_metrics = Tensor(new_metric_results).squeeze(-1).squeeze(-1)
         all_timestamps = torch.cat([result['timestamps'] for result in results])
         all_feasibility = torch.cat([result['feasibility'] for result in results])
 
