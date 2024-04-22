@@ -701,7 +701,8 @@ class Space:
         random.shuffle(config_list)
 
         file_names = output_data_file.split(".")
-        seed = self.seed
+        #TODO the seed is never set
+        seed = 999
         output_data_file = "." + file_names[1] + f"_{seed}." + file_names[2]
 
         data_dict = {name: [] for name in self.parameter_names}  # Initialize empty lists for each parameter name
@@ -725,7 +726,6 @@ class Space:
         for i in range(len(config_list)):
             server_args = self.calculate_server_args(config_dicts_grpc, server_addresses, output_data_file, i, i+1)
             results.append(self.process_server_configs(server_args[0][0], server_args[0][1], server_args[0][2], server_args[0][3]))
-
 
         # List to hold DataFrames from each result
         dfs = []
@@ -1073,3 +1073,12 @@ def write_data_array(param_space, data_array, filename):
     except Exception as e:
         print(e)
         raise Exception("Failed to write data array")
+
+
+def get_permutation_settings(settings):
+    for key, val in settings["input_parameters"].items():
+        if val["parameter_type"] == "permutation":
+            setting = val["parametrization"]
+            return setting
+        
+    raise ValueError("No permutation parameterization available.")

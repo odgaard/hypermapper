@@ -10,6 +10,10 @@ from scipy.optimize import minimize
 from hypermapper.bo.acquisition_functions import ei, ucb
 from hypermapper.bo.local_search import local_search
 from hypermapper.bo.prior_acquisition_functions import ei_pibo
+from hypermapper.bo.bt_acq import (
+    qLogNEI,
+    qLogNEHVI,
+)
 from hypermapper.param import space
 from hypermapper.param.data import DataArray
 from hypermapper.param.parameters import RealParameter
@@ -105,6 +109,7 @@ def optimize_acq(
     objective_stds,
     best_values,
     classification_model=None,
+    botorch_acq_kwargs: dict = {},
 ):
     """
     Run one iteration of bayesian optimization with random scalarizations.
@@ -153,6 +158,14 @@ def optimize_acq(
 
     elif settings["acquisition_function"] == "EI_PIBO":
         acquisition_function = ei_pibo
+
+    
+    elif settings["acquisition_function"] == "qLogNEI":
+        acquisition_function = qLogNEI(regression_models, **botorch_acq_kwargs)
+    
+    elif settings["acquisition_function"] == "qLogNEHVI":
+        acquisition_function = qLogNEHVI(regression_models, **botorch_acq_kwargs)
+
     else:
         raise Exception("Invalid acquisition function specified.")
 

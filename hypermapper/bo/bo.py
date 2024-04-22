@@ -50,7 +50,6 @@ def main(settings, black_box_function=None):
         torch.Tensor(), torch.Tensor(), torch.Tensor(), torch.Tensor(), torch.Tensor()
     )
     absolute_configuration_index = 0
-
     ################################################
     # RESUME PREVIOUS
     ################################################

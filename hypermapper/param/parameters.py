@@ -770,8 +770,8 @@ class PermutationParameter(Parameter):
                   a list of values. The outer list is over the new variables, and the inner list over the data points.
         """
 
-        if self.parametrization == "spearman":
-            return (
+        if (self.parametrization == "spearman") or (self.parametrization == "mallows") or (self.parametrization == "transformed_overlap"):
+            res = (
                 [f"{self.name}_{i}" for i in range(self.n_elements)],
                 [
                     [
@@ -782,8 +782,8 @@ class PermutationParameter(Parameter):
                 ],
             )
 
-        elif self.parametrization == "kendall":
-            return (
+        elif (self.parametrization == "kendall"):
+            res = (
                 [
                     f"{self.name}_{i}_{j}"
                     for i in range(self.n_elements)
@@ -800,8 +800,8 @@ class PermutationParameter(Parameter):
                 ],
             )
 
-        elif self.parametrization == "hamming":
-            return (
+        elif (self.parametrization == "hamming"):
+            res = (
                 [
                     f"{self.name}_{i}_{j}"
                     for i in range(self.n_elements)
@@ -818,7 +818,7 @@ class PermutationParameter(Parameter):
             )
 
         elif self.parametrization == "naive":
-            return (
+            res = (
                 [f"{self.name}_{i}" for i in range(self.get_size())],
                 [[int(int(d) == i) for i in range(self.get_size())] for d in data],
             )
@@ -827,6 +827,7 @@ class PermutationParameter(Parameter):
             raise Exception(
                 f"Incorrect permutation parametrization: {self.parametrization}"
             )
+        return res
 
     def sample(self, size=1, uniform=False) -> torch.Tensor:
         """

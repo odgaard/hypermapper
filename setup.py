@@ -30,9 +30,9 @@ setup(
         "numexpr>=2.8.5",
         "networkx>=3.1",
         "graphviz>=0.20.1",
-        "botorch>=0.8.5",
-        "gpytorch>=1.10",
+        "botorch>=0.10",
+        "gpytorch>=1.11",
     ],
-    python_requires=">=3.6",
+    python_requires=">=3.10",
     entry_points={"console_scripts": ["hypermapper = hypermapper.run:main"]},
 )

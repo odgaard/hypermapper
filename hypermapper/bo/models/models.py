@@ -58,8 +58,8 @@ def generate_mono_output_regression_models(
     """
     start_time = time.time()
 
-    X, Y, parametrization_names = transform_data(
-        settings, data_array, param_space, objective_means, objective_stds
+    X, Y, parametrization_names, param_dims = transform_data(
+        settings, data_array, param_space, objective_means, objective_stds, return_dim_indices=True,
     )
 
     models = []
@@ -74,7 +74,7 @@ def generate_mono_output_regression_models(
             elif settings["GP_model"] == "botorch":
                 from hypermapper.bo.models.gpbotorch import GpBotorch
 
-                model = GpBotorch(settings, X, y)
+                model = GpBotorch(settings, X, y, param_dims)
             elif settings["GP_model"] == "gpytorch":
                 from hypermapper.bo.models.gpgpytorch import GpGpytorch
 

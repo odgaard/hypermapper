@@ -14,6 +14,7 @@ def transform_data(
     param_space: Space,
     objective_means: torch.Tensor,
     objective_stds: torch.Tensor,
+    return_dim_indices: bool = False
 ) -> Tuple[torch.Tensor, torch.Tensor, List[str]]:
     """
     Transform the data array into a format that can be used by the GP models. It normalizes and the input, standardizes the output
@@ -31,8 +32,8 @@ def transform_data(
 
     """
     # Transform input
-    X, parametrization_names = preprocess_parameters_array(
-        data_array.parameters_array, param_space
+    X, parametrization_names, dims_indices = preprocess_parameters_array(
+        data_array.parameters_array, param_space, return_dim_indices=return_dim_indices
     )
     # Transform output
     Y = data_array.metrics_array.clone()
@@ -48,7 +49,9 @@ def transform_data(
             sys.stdout.write_to_logfile(
                 "Warning: no statistics provided, skipping objective standardization.\n"
             )
-
+    if return_dim_indices:
+        return X, Y, parametrization_names, dims_indices
+    
     return X, Y, parametrization_names
 
 
@@ -81,6 +84,7 @@ def transform_estimate(
 def preprocess_parameters_array(
     X: torch.Tensor,
     param_space: Space,
+    return_dim_indices: bool = False,
 ) -> Tuple[torch.Tensor, List[str]]:
     """
     Preprocess a data_array before feeding into a regression/classification model.
@@ -98,12 +102,17 @@ def preprocess_parameters_array(
     X = X.clone()
     new_X = torch.Tensor()
     new_names = []
+    numerical_indices = []
+    categorical_indices = []
+    permutation_indices = []
     for idx, parameter in enumerate(param_space.parameters):
+        start_index = new_X.shape[-1]
         if (
             isinstance(parameter, RealParameter)
             or isinstance(parameter, IntegerParameter)
             or isinstance(parameter, OrdinalParameter)
         ):
+
             new_names.append(parameter.name)
             new_X = torch.cat((new_X, X[:, idx].unsqueeze(1)), dim=1)
             if parameter.transform == "log":
@@ -115,6 +124,9 @@ def preprocess_parameters_array(
                     p_min = np.log10(p_min)
                     p_max = np.log10(p_max)
                 new_X[:, -1] = (new_X[:, -1] - p_min) / (p_max - p_min)
+            end_index = new_X.shape[-1]
+            numerical_indices.extend(list(range(start_index, end_index)))
+
         elif isinstance(parameter, CategoricalParameter):
             # Categorical variables are encoded as their index, generate a list of "index labels"
             categories = np.arange(parameter.get_size())
@@ -125,10 +137,25 @@ def preprocess_parameters_array(
             for i in range(encoded_x.shape[1]):
                 new_names.append(f"{parameter.name}_{categories[i]}")
             new_X = torch.cat((new_X, torch.tensor(encoded_x)), dim=1)
+            end_index = new_X.shape[-1]
+            categorical_indices.extend(list(range(start_index, end_index)))
 
         elif isinstance(parameter, PermutationParameter):
             # Permutation variables are encoded based on their chosen parametrization
             keys, encoded_x = parameter.parametrize(X[:, idx])
             new_names.extend(keys)
             new_X = torch.cat((new_X, torch.tensor(encoded_x)), dim=1)
+            end_index = new_X.shape[-1]
+            permutation_indices.extend(list(range(start_index, end_index)))
+        
+    if return_dim_indices:
+        return (
+            new_X, 
+            new_names, 
+            {
+                "numerical": numerical_indices, 
+                "categorical": categorical_indices, 
+                "permutation": permutation_indices
+            }
+        )
     return new_X, new_names

@@ -506,6 +506,11 @@
       "description": "Whether to use naive rs for cot.",
       "type": "boolean"
     },
+    "parameterize_lambda": {
+      "default": false,
+      "description": "Whether to split the continous and categorical part of the kernel and parameterize each.",
+      "type": "boolean"
+    },
     "noise": {
       "default": true,
       "description": "Whether the function is assumed to be noisy or not.",
@@ -523,7 +528,8 @@
           ],
           "enum": [
             "none",
-            "gamma"
+            "gamma",
+            "lognormal"
           ],
           "type": "string"
         },
