@@ -200,12 +200,14 @@
   },
   "properties": {
     "acquisition_function": {
-      "default": "EI",
+      "default": "qLogNEI",
       "description": "which acquisition function to be used: EI or UCB.",
       "enum": [
         "UCB",
         "EI",
-        "EI_PIBO"
+        "EI_PIBO",
+        "qLogNEI",
+        "qLogNEHVI"
       ],
       "type": "string"
     },
@@ -651,6 +653,11 @@
       "default": "output_samples.csv",
       "description": "csv data of a previous optimization run to use to resume optimization.",
       "type": "string"
+    },
+    "minimize": {
+      "default": true,
+      "description": "Whether to store hyperparameters between iterations. Should yield average better likelihood but less exploration.",
+      "type": "boolean"
     },
     "reuse_gp_hyperparameters": {
       "default": false,
