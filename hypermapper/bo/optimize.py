@@ -172,19 +172,20 @@ def optimize_acq(
     t0 = time.time()
 
     ### INITIAL SAMPLES
+    raw_samples = settings["local_search_random_points"]
     samples_from_prior = False
     if samples_from_prior:
         random_sample_configurations = torch.cat(
             (
                 random_sample(
                     param_space,
-                    settings["local_search_random_points"],
+                    raw_samples,
                     "uniform",
                     True,
                 )
                 + random_sample(
                     param_space,
-                    settings["local_search_random_points"],
+                    raw_samples,
                     "using_priors",
                     True,
                 )
@@ -195,20 +196,24 @@ def optimize_acq(
     else:
         random_sample_configurations = random_sample(
             param_space,
-            settings["local_search_random_points"],
+            raw_samples,
             "uniform",
             True,
         )
 
     sys.stdout.write_to_logfile("Total RS time %10.4f sec\n" % (time.time() - t0))
     t1 = time.time()
-
-    rs_acquisition_values = acquisition_function(
-        settings,
-        param_space,
-        X=random_sample_configurations,
-        **acquisition_function_parameters,
-    )
+    batch_size = settings["acq_batch_size"]
+    num_acq_batches = np.ceil(raw_samples / batch_size).astype(int)
+    rs_acquisition_values = torch.zeros(raw_samples).to(random_sample_configurations)
+    for batch_idx in range(num_acq_batches):
+        lb, ub = batch_idx * batch_size, min((batch_idx + 1) * batch_size, raw_samples) 
+        rs_acquisition_values[lb: ub] = acquisition_function(
+            settings,
+            param_space,
+            X=random_sample_configurations[lb: ub],
+            **acquisition_function_parameters,
+        )
 
     sys.stdout.write_to_logfile(
         "Optimization function time %10.4f sec\n" % (time.time() - t1)

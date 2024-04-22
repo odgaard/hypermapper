@@ -448,6 +448,11 @@
       "description": "Standard deviation when selecting new points in the local search for continuous values.",
       "type": "number"
     },
+    "acq_batch_size": {
+      "default": 128,  
+      "description": "The batch size in which acquisition batches are computed - alleviates memory issues at the occasional cost of speed.",
+      "type": "number"
+    },
     "log_acq_value": {
       "default": false,
       "description": "whether to log transfor acq val",

@@ -6,7 +6,7 @@ from gpytorch.kernels import Kernel
 from gpytorch.priors import NormalPrior
 
 
-def compute_concordant_pairs(x1: Tensor, x2: Tensor) -> Tensor:
+def compute_concordant_pairs(x1: Tensor, x2: Tensor, diag: bool = False) -> Tensor:
     """Computes the number of concordant and discordant pairs
     in the permutation tensors.
 
@@ -24,9 +24,7 @@ def compute_concordant_pairs(x1: Tensor, x2: Tensor) -> Tensor:
     order_diffs = ((x1.unsqueeze(-2) - x1.unsqueeze(-1))
             * (x2.unsqueeze(-2) - x2.unsqueeze(-1))
     )
-    #print("Tril start")
     concordant_pairs = (order_diffs.tril() > 0).sum(dim=[-1, -2])
-    #print("Tril done, RIP")
     return concordant_pairs
 
 
@@ -44,11 +42,9 @@ class MallowsKernel(Kernel):
     def forward(self, x1: Tensor, x2: Tensor, diag: bool = False, last_dim_is_batch: bool = False, **params) -> Tensor:
 
         max_pairs = (x1.shape[-1] * (x1.shape[-1] - 1)) / 2
-        #print(x1.shape, x2.shape)
-        # TODO diag here already!   
         concordant_pairs = compute_concordant_pairs(x1, x2)
         discordant_pairs = max_pairs - concordant_pairs
-
+        
         if diag:
             return torch.diagonal(torch.exp(-discordant_pairs / self.lengthscale), dim1=-1, dim2=-2)
         

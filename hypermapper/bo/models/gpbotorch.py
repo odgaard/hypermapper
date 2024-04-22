@@ -104,18 +104,21 @@ class GpBotorch(botorch.models.SingleTaskGP, Model):
         Initialise the kernel
         """
         # mean_module = gpytorch.means.ZeroMean()
-        mean_module = gpytorch.means.ConstantMean()
+        batch_shape = y.shape[-1:]
+        mean_module = gpytorch.means.ConstantMean(batch_shape=batch_shape)
         if len(permutation_dims) > 0:
             if perm_settings in ["spearman", "hamming", "kendall"]:
                 num_kernel = gpytorch.kernels.RBFKernel(
                     lengthscale_prior=lengthscale_prior,
                     ard_num_dims=len(numerical_dims + categorical_dims),
                     active_dims=numerical_dims + categorical_dims,
+                    batch_shape=batch_shape,
                 )
                 perm_kernel = gpytorch.kernels.RBFKernel(
                     lengthscale_prior=lengthscale_prior,
                     ard_num_dims=(len(permutation_dims)),
                     active_dims=permutation_dims,
+                    batch_shape=batch_shape,
                 )
                 base_kernel = num_kernel * perm_kernel
 
@@ -124,10 +127,12 @@ class GpBotorch(botorch.models.SingleTaskGP, Model):
                     lengthscale_prior=lengthscale_prior,
                     ard_num_dims=len(numerical_dims + categorical_dims),
                     active_dims=numerical_dims + categorical_dims,
+                    batch_shape=batch_shape,
                 )                
                 perm_kernel = MallowsKernel(
                     lengthscale_prior=lengthscale_prior,    
                     active_dims=permutation_dims,
+                    batch_shape=batch_shape,
                 )
             
             elif perm_settings == "transformed_overlap":
@@ -135,14 +140,16 @@ class GpBotorch(botorch.models.SingleTaskGP, Model):
                     lengthscale_prior=lengthscale_prior,
                     ard_num_dims=len(numerical_dims + categorical_dims),
                     active_dims=numerical_dims + categorical_dims,
+                    batch_shape=batch_shape,
                 )                
                 perm_kernel = TransformedOverlapKernel(
                     lengthscale_prior=lengthscale_prior,
                     active_dims=permutation_dims,
+                    batch_shape=batch_shape,
                 )
             
             if settings["parameterize_lambda"]:
-                base_kernel = WeightedAdditiveKernel(perm_kernel, num_kernel)
+                base_kernel = WeightedAdditiveKernel(perm_kernel, num_kernel, batch_shape=batch_shape)
             else:
                 base_kernel = num_kernel * perm_kernel
         else:
@@ -150,10 +157,12 @@ class GpBotorch(botorch.models.SingleTaskGP, Model):
                 lengthscale_prior=lengthscale_prior,
                 ard_num_dims=len(numerical_dims + categorical_dims),
                 active_dims=numerical_dims + categorical_dims,
+                batch_shape=batch_shape,
             )
         covar_module = gpytorch.kernels.ScaleKernel(
             base_kernel,
             outputscale_prior=outputscale_prior,
+            batch_shape=batch_shape,
         )
 
         with warnings.catch_warnings(
