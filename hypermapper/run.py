@@ -1,8 +1,9 @@
 import os
 import sys
+import random
 
 from typing import Union, Dict, Callable, Optional
-
+import numpy as np
 import torch
 
 from hypermapper.util.util import (
@@ -12,10 +13,12 @@ from hypermapper.util.util import (
 from hypermapper.util.file import read_settings_file
 from hypermapper.util.logging import Logger
 import argparse
-
+from fire import Fire
 
 def optimize(
-    settings_file: Union[str, Dict], black_box_function: Optional[Callable] = None
+    settings_file: Union[str, Dict], 
+    black_box_function: Optional[Callable] = None, 
+    seed: Optional[int] = 1001,
 ):
     """
     Optimize is the main method of Hypermapper. It takes a problem to optimize and optimization settings
@@ -32,6 +35,11 @@ def optimize(
         settings = settings_file
     else:
         raise Exception(f"settings_file must be str or dict, not {type(settings_file)}")
+    settings["seed"] = seed
+    
+    random.seed(seed)
+    torch.manual_seed(seed)
+    np.random.seed(seed)
 
     # INITIAL SETUP
     if not os.path.isdir(settings["run_directory"]):
@@ -110,17 +118,13 @@ def optimize(
         return "complete", [best_point], keys
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("json_file", help="JSON file containing the run settings")
-    args = parser.parse_args()
+@Fire
+def main(json_file: str, seed: Optional[int] = 1001):
 
-    if "json_file" in args:
-        parameters_file = args.json_file
-    else:
-        print("Error: only one argument needed, the parameters json file.")
+    if not isinstance(json_file, str):
+        raise ValueError("Only one argument needed, the parameters json file.")
 
-    optimize(parameters_file)
+    optimize(json_file, seed=seed)
 
 
 if __name__ == "__main__":

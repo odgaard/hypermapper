@@ -73,6 +73,7 @@ class Space:
         self.real_parameters = []
         self.conditional_space = False
         self.constraints = []
+        self.seed = settings.get("seed", 1001)
 
         self.parse_input_parameters(settings["input_parameters"])
 
@@ -702,7 +703,7 @@ class Space:
 
         file_names = output_data_file.split(".")
         #TODO the seed is never set
-        seed = 999
+        seed = self.seed
         output_data_file = "." + file_names[1] + f"_{seed}." + file_names[2]
 
         data_dict = {name: [] for name in self.parameter_names}  # Initialize empty lists for each parameter name
