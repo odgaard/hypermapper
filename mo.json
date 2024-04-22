@@ -1,0 +1,170 @@
+{
+	"application_name": "bolog_spmm_8700_baco",
+	"optimization_objectives": [
+		"compute_time",
+		"energy"
+	],
+	"feasible_output": {
+		"enable_feasible_predictor": true,
+		"name": "Valid",
+		"true_value": "True",
+		"false_value": "False"
+	},
+	"hypermapper_mode": {
+		"mode": "grpc",
+		"server_addresses": [
+			"localhost"
+		]
+	},
+	"log_file": "bolog_spmm_baco.log",
+	"log_transform_output": true,
+	"epsilon_greedy_threshold": 0,
+	"design_of_experiment": {
+		"doe_type": "random sampling",
+		"number_of_samples": 13
+	},
+	"models": {
+		"model": "gaussian_process"
+	},
+	"local_search_random_points": 1000,
+	"lengthscale_prior": {
+		"name": "lognormal",
+		"parameters": [
+			2.0,
+			1.71
+		]
+	},
+	"noise_prior": {
+		"name": "lognormal",
+		"parameters": [
+			-4.0,
+			1.0
+		]
+	},
+	"outputscale_prior": {
+		"name": "gamma",
+		"parameters": [
+			2.0,
+			0.15
+		]
+	},
+	"optimization_method": "bayesian_optimization",
+	"optimization_iterations": 190,
+	"GP_model": "botorch",
+	"multistart_hyperparameter_optimization": true,
+	"hyperparameter_optimization_iterations": 10,
+	"input_parameters": {
+		"chunk_size": {
+			"constraints": [
+				"chunk_size % 2 == 0"
+			],
+			"parameter_default": 16,
+			"parameter_type": "ordinal",
+			"transform": "log",
+			"values": [
+				2,
+				4,
+				8,
+				16,
+				32,
+				64
+			]
+		},
+		"omp_chunk_size": {
+			"constraints": [
+				"(omp_chunk_size % 2 == 0) | (omp_chunk_size == 1)"
+			],
+			"parameter_default": 1,
+			"parameter_type": "ordinal",
+			"transform": "log",
+			"values": [
+				1,
+				2,
+				4,
+				8,
+				16,
+				32,
+				64
+			]
+		},
+		"omp_num_threads": {
+			"parameter_default": 48,
+			"parameter_type": "ordinal",
+			"values": [
+				2,
+				4,
+				6,
+				8,
+				10,
+				12
+			]
+		},
+		"omp_scheduling_type": {
+			"parameter_default": 0,
+			"parameter_type": "ordinal",
+			"values": [
+				0,
+				1,
+				2
+			]
+		},
+		"omp_monotonic": {
+			"parameter_default": 0,
+			"parameter_type": "ordinal",
+			"values": [
+				0,
+				1
+			]
+		},
+		"omp_dynamic": {
+			"parameter_default": 0,
+			"parameter_type": "ordinal",
+			"values": [
+				0,
+				1
+			]
+		},
+		"unroll_factor": {
+			"constraints": [
+				"unroll_factor < chunk_size",
+				"(unroll_factor % 2 == 0) | (unroll_factor == 1)"
+			],
+			"dependencies": [
+				"chunk_size"
+			],
+			"parameter_default": 8,
+			"parameter_type": "ordinal",
+			"transform": "log",
+			"values": [
+				1,
+				2,
+				4,
+				8,
+				16
+			]
+		},
+		"permutation": {
+			"constraints": [
+				"permutation_i0 < permutation_i3",
+				"permutation_i1 < permutation_i3",
+				"permutation_i0 < permutation_i2",
+				"permutation_i1 < permutation_i2",
+				"(permutation_i3 < permutation_i2) | (permutation_i3 < permutation_i4)"
+			],
+			"parameter_default": [
+				0,
+				1,
+				2,
+				3,
+				4
+			],
+			"parameter_type": "permutation",
+			"parametrization": "spearman",
+			"values": [
+				5
+			]
+		}
+	},
+	"parameterize_lambda": true,
+	"acquisition_function": "qLogNEHVI"
+}
