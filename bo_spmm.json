@@ -26,8 +26,6 @@
 		"model": "gaussian_process"
 	},
 	"local_search_random_points": 1024,
-	"acquisition_function": "qLogNEI",
-	"parameterize_lambda": false,
 	"lengthscale_prior": {
 		"name": "lognormal",
 		"parameters": [
@@ -165,5 +163,7 @@
 				5
 			]
 		}
-	}
+	},
+	"parameterize_lambda": false,
+	"acquisition_function": "qLogNEI"
 }
