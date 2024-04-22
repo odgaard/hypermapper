@@ -58,6 +58,7 @@ class qLogNEHVI(BotorchAcquisitionFunction):
 
     def __init__(self, model):
         model = model
-        
-        ref_point = [0, 0]
+        ref_point = torch.zeros(model.train_targets.shape[0])
         self.acq = self.acq_class(model, ref_point, model.train_inputs[0][0], prune_baseline=True)
+
+
