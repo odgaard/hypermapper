@@ -166,5 +166,5 @@
 		}
 	},
 	"parameterize_lambda": true,
-	"acquisition_function": "qLogNEHVI"
+	"acquisition_function": "qLogNEI"
 }

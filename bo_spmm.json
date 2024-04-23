@@ -164,6 +164,6 @@
 			]
 		}
 	},
-	"parameterize_lambda": false,
+	"parameterize_lambda": true,
 	"acquisition_function": "qLogNEI"
 }
