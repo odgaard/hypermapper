@@ -1,8 +1,7 @@
 {
 	"application_name": "bolog_spmm_8700_baco",
 	"optimization_objectives": [
-		"compute_time",
-		"energy"
+		"compute_time"
 	],
 	"feasible_output": {
 		"enable_feasible_predictor": true,
@@ -21,7 +20,7 @@
 	"epsilon_greedy_threshold": 0,
 	"design_of_experiment": {
 		"doe_type": "random sampling",
-		"number_of_samples": 13
+		"number_of_samples": 20
 	},
 	"models": {
 		"model": "gaussian_process"
@@ -49,7 +48,7 @@
 		]
 	},
 	"optimization_method": "bayesian_optimization",
-	"optimization_iterations": 190,
+	"optimization_iterations": 180,
 	"GP_model": "botorch",
 	"multistart_hyperparameter_optimization": true,
 	"hyperparameter_optimization_iterations": 10,
@@ -165,6 +164,6 @@
 			]
 		}
 	},
-	"parameterize_lambda": true,
+	"parameterize_lambda": false,
 	"acquisition_function": "qLogNEI"
 }
