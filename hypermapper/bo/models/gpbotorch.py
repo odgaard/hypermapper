@@ -105,6 +105,9 @@ class GpBotorch(botorch.models.SingleTaskGP, Model):
         """
         # mean_module = gpytorch.means.ZeroMean()
         batch_shape = y.shape[-1:]
+        if batch_shape == torch.Size([1]):
+            batch_shape = torch.Size([])
+        
         mean_module = gpytorch.means.ConstantMean(batch_shape=batch_shape)
         if len(permutation_dims) > 0:
             if perm_settings in ["spearman", "hamming", "kendall"]:
