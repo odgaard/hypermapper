@@ -118,7 +118,6 @@ def optimize(
         return "complete", [best_point], keys
 
 
-@Fire
 def main(json_file: str, seed: Optional[int] = 1001):
 
     if not isinstance(json_file, str):
@@ -128,4 +127,5 @@ def main(json_file: str, seed: Optional[int] = 1001):
 
 
 if __name__ == "__main__":
-    main()
+    Fire(main)
+
