@@ -650,7 +650,8 @@ class Space:
         return data_array
 
     def send_shutdown_signal(self, server_address):
-        with grpc.insecure_channel(f"{server_address}:50050") as channel:
+        port = self.settings["hypermapper_mode"]["port"]
+        with grpc.insecure_channel(f"{server_address}:{port}") as channel:
             stub = cs_grpc.ConfigurationServiceStub(channel)
             request = cs.ShutdownRequest(shutdown=True)
             response = stub.Shutdown(request)
@@ -660,7 +661,8 @@ class Space:
                 print(f"Failed to send shutdown signal to {server_address}")
 
     def process_server_configs(self, server_address, server_configs_grpc, server_configs, output_data_file):
-        with grpc.insecure_channel(f"{server_address}:50050") as channel:
+        port = self.settings["hypermapper_mode"]["port"]
+        with grpc.insecure_channel(f"{server_address}:{port}") as channel:
             stub = cs_grpc.ConfigurationServiceStub(channel)
             server_metrics_list = []
             server_timestamps_list = []
@@ -673,14 +675,19 @@ class Space:
                 response = stub.RunConfigurationsClientServer(request)
                 #print(response.metrics, response.feasible.value)
                 metric_results = []
+                feasible = response.feasible.value
                 for metric in response.metrics:
                     if response.feasible.value is False:
-                        metric_results.append([10000.0])
+                        metric_results.append([100000.0])
                     else:
+                        #if metric.values[0] == 0.0:
+                        #    feasible = False
+                        #    metric_results.append([100000.0])
+                        #else:
                         metric_results.append(metric.values)
                 server_metrics_list.append(metric_results)
                 server_timestamps_list.append(response.timestamps.timestamp)
-                server_feasibility_list.append(response.feasible.value)
+                server_feasibility_list.append(feasible)
 
         tensor_metrics_list = []
         for config in server_metrics_list:
@@ -750,7 +757,7 @@ class Space:
         config_list = configurations.tolist()
         config_list = self.convert(configurations, "internal", "string")
 
-        random.shuffle(config_list)
+        #random.shuffle(config_list)
 
         file_names = output_data_file.split(".")
         #TODO the seed is never set
@@ -775,8 +782,12 @@ class Space:
 
         results = []
 
+        print(len(config_dicts_grpc))
+        print(len(config_list))
+
         for i in range(len(config_list)):
             server_args = self.calculate_server_args(config_dicts_grpc, server_addresses, output_data_file, i, i+1)
+            print(len(server_args))
             results.append(self.process_server_configs(server_args[0][0], server_args[0][1], server_args[0][2], server_args[0][3]))
 
         new_metric_results = []
