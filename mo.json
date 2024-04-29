@@ -1,7 +1,8 @@
 {
 	"application_name": "bolog_spmm_8700_baco",
 	"optimization_objectives": [
-		"compute_time"
+		"compute_time",
+		"energy"
 	],
 	"feasible_output": {
 		"enable_feasible_predictor": true,
@@ -13,7 +14,8 @@
 		"mode": "grpc",
 		"server_addresses": [
 			"localhost"
-		]
+		],
+		"port": 50050
 	},
 	"log_file": "bolog_spmm_baco.log",
 	"log_transform_output": true,
@@ -48,7 +50,7 @@
 		]
 	},
 	"optimization_method": "bayesian_optimization",
-	"optimization_iterations": 180,
+	"optimization_iterations": 2,
 	"GP_model": "botorch",
 	"multistart_hyperparameter_optimization": true,
 	"hyperparameter_optimization_iterations": 10,
