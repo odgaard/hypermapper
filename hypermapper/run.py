@@ -79,53 +79,40 @@ def optimize(
     # If mono-objective, compute the best point found
     objectives = settings["optimization_objectives"]
     inputs = list(settings["input_parameters"].keys())
-    if len(objectives) != 1:
-        raise NotImplementedError(
-            "Multi-objective optimization is not supported for this part."
-        )
+    if len(objectives) == 1:
+        feasible_output = settings["feasible_output"]
+        if feasible_output["enable_feasible_predictor"]:
+            feasible_output_name = feasible_output["name"]
+            best_point = get_min_feasible_configurations(data_array, 1)
+        else:
+            best_point = get_min_configurations(data_array, 1)
 
-    feasible_output = settings["feasible_output"]
-    if feasible_output["enable_feasible_predictor"]:
-        feasible_output_name = feasible_output["name"]
-        best_point = get_min_feasible_configurations(data_array, 1)
-    else:
-        best_point = get_min_configurations(data_array, 1)
-
-    keys = (
-        inputs
-        + objectives
-        + (
-            [feasible_output_name]
-            if feasible_output["enable_feasible_predictor"]
-            else []
+        keys = (
+            inputs
+            + objectives
+            + (
+                [feasible_output_name]
+                if feasible_output["enable_feasible_predictor"]
+                else []
+            )
         )
-    )
-    best_point = (
-        [p.item() for p in best_point.parameters_array[0]]
-        + [m.item() for m in best_point.metrics_array[0]]
-        + (
-            [f.item() for f in best_point.feasible_array]
-            if feasible_output["enable_feasible_predictor"]
-            else []
+        best_point = (
+            [p.item() for p in best_point.parameters_array[0]]
+            + [m.item() for m in best_point.metrics_array[0]]
+            + (
+                [f.item() for f in best_point.feasible_array]
+                if feasible_output["enable_feasible_predictor"]
+                else []
+            )
         )
-    )
-    sys.stdout.write_protocol("Best point found:\n")
-    sys.stdout.write_protocol(f"{','.join(keys)}\n")
-    sys.stdout.write_protocol(f"{','.join([str(v) for v in best_point])}\n\n")
+        sys.stdout.write_protocol("Best point found:\n")
+        sys.stdout.write_protocol(f"{','.join(keys)}\n")
+        sys.stdout.write_protocol(f"{','.join([str(v) for v in best_point])}\n\n")
 
     sys.stdout.write_protocol("End of Optimization\n")
     if settings["hypermapper_mode"]["mode"] == "stateless":
         return "complete", [best_point], keys
 
 
-@Fire
-def main(json_file: str, seed: Optional[int] = 1001):
-
-    if not isinstance(json_file, str):
-        raise ValueError("Only one argument needed, the parameters json file.")
-
-    optimize(json_file, seed=seed)
-
-
 if __name__ == "__main__":
-    main()
+    Fire(optimize)
