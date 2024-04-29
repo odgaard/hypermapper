@@ -125,7 +125,10 @@
           "enum": [
             "grpc"
           ]
-        }
+        },
+	"port": {
+	  "type": "number"
+	}
       },
       "required": [
         "mode"
