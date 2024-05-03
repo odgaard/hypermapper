@@ -677,13 +677,10 @@ class Space:
                 metric_results = []
                 feasible = response.feasible.value
                 for metric in response.metrics:
-                    if response.feasible.value is False:
+                    if response.feasible.value is False or ("ttv" in self.application_name.lower() and metric.values[0] == 0.0):
                         metric_results.append([100000.0])
+                        feasible = False
                     else:
-                        #if metric.values[0] == 0.0:
-                        #    feasible = False
-                        #    metric_results.append([100000.0])
-                        #else:
                         metric_results.append(metric.values)
                 server_metrics_list.append(metric_results)
                 server_timestamps_list.append(response.timestamps.timestamp)
@@ -764,26 +761,38 @@ class Space:
         seed = self.seed
         output_data_file = "." + file_names[1] + f"_{seed}." + file_names[2]
 
-        data_dict = {name: [] for name in self.parameter_names}  # Initialize empty lists for each parameter name
+        new_config_list = []
 
         for config in config_list:
-            for name, value, _ in zip(self.parameter_names, config, self.parameter_types):
-                data_dict[name].append(value)  # Append values to respective lists in data_dict
-
-        config_df = pd.DataFrame(data_dict)  # Convert data_dict to DataFrame
+            param_types = self.parameter_types
+            preprocessing = list(zip(self.parameter_names, config, self.parameter_types))
+            test = []
+            if "carl" in self.application_name or "intersect" in self.application_name:
+                for name, value, param_type in preprocessing:
+                    if param_type == "real":
+                        if name == "data_load_factor":
+                            test.append((name, float(value), "real"))
+                        else:
+                            print(name, value, int(round(float(value))))
+                            test.append((name, int(round(float(value))), "integer"))
+                    else:
+                        test.append((name, value, param_type))
+            else:
+                test = preprocessing
+            new_config_list.append(test)
 
         config_dicts_grpc = [
             {
                 name: value_to_param(value, param_type)
-                for name, value, param_type in zip(self.parameter_names, config, self.parameter_types)
+                for name, value, param_type in config
             }
-            for config in config_list
+            for config in new_config_list
         ]
 
         results = []
 
         print(len(config_dicts_grpc))
-        print(len(config_list))
+        print(len(new_config_list))
 
         for i in range(len(config_list)):
             server_args = self.calculate_server_args(config_dicts_grpc, server_addresses, output_data_file, i, i+1)
@@ -805,8 +814,17 @@ class Space:
         all_timestamps = torch.cat([result['timestamps'] for result in results])
         all_feasibility = torch.cat([result['feasibility'] for result in results])
 
+        print(new_config_list)
+        print(configurations)
+
+        new_conf = Tensor([[param[1] for param in config] for config in new_config_list])
+        new_conf = new_conf.to(torch.float64)
+        print(new_conf)
+
         new_data_array = DataArray(
-            configurations,
+            #configurations,
+            new_conf,
+            ##Tensor([[param[1] for param in config] for config in new_config_list]),
             all_metrics,
             all_timestamps,
             all_feasibility,
@@ -820,7 +838,6 @@ class Space:
             for server_address in server_addresses:
                 self.send_shutdown_signal(server_address)
 
-        torch.set_num_threads(1)
         return new_data_array
 
     def run_configurations_client_server(
