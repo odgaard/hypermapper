@@ -677,7 +677,8 @@ class Space:
                 metric_results = []
                 feasible = response.feasible.value
                 for metric in response.metrics:
-                    if response.feasible.value is False or ("ttv" in self.application_name.lower() and metric.values[0] == 0.0):
+                    print(self.application_name, metric.values[0])
+                    if response.feasible.value is False or (("carl" not in self.application_name and "intersect" not in self.application_name) and metric.values[0] == 0.0):
                         metric_results.append([100000.0])
                         feasible = False
                     else:

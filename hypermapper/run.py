@@ -14,6 +14,9 @@ from hypermapper.util.file import read_settings_file
 from hypermapper.util.logging import Logger
 import argparse
 from fire import Fire
+    
+import warnings
+from linear_operator.utils.cholesky import NumericalWarning
 
 def optimize(
     settings_file: Union[str, Dict], 
@@ -36,7 +39,9 @@ def optimize(
     else:
         raise Exception(f"settings_file must be str or dict, not {type(settings_file)}")
     settings["seed"] = seed
-    
+
+    # Ignore NumericalWarning
+    warnings.filterwarnings('ignore', category=NumericalWarning)
     random.seed(seed)
     torch.manual_seed(seed)
     np.random.seed(seed)
