@@ -240,7 +240,6 @@ class RFClassificationModel(RandomForestClassifier):
         Returns:
             - tensor with model predictions.
         """
-        normalized_data, names = preprocess_parameters_array(data, self.param_space)
-        return torch.tensor(self.predict_proba(normalized_data.numpy()))[
+        return torch.tensor(self.predict_proba(data.numpy()))[
             :, list(self.classes_).index(True)
         ]

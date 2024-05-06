@@ -818,7 +818,8 @@ class Space:
         print(new_config_list)
         print(configurations)
 
-        new_conf = Tensor([[param[1] for param in config] for config in new_config_list])
+        new_conf = Tensor([[eval(param[1]) for param in config] for config in new_config_list])
+
         new_conf = new_conf.to(torch.float64)
         print(new_conf)
 
