@@ -36,11 +36,18 @@ class BotorchAcquisitionFunction: # well, basically only the qEI-family
             feasibility_indicator = torch.ones(len(X))
         
         acqval = self.acq(X.unsqueeze(-2))
-        acqval = (
-            acqval * 
-            feasibility_indicator * 
-            (feasibility_indicator >= feasibility_threshold)
-        )
+
+        if self.acq._log:
+            acqval = acqval + torch.log(feasibility_indicator * (
+                feasibility_indicator >= feasibility_threshold)
+            )
+        
+        else:
+            acqval = (
+                acqval * 
+                feasibility_indicator * 
+                (feasibility_indicator >= feasibility_threshold)
+            )
         return acqval
 
 
