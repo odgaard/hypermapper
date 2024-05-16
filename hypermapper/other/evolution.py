@@ -265,7 +265,7 @@ def main(settings, black_box_function=None):
     algorithm = MixedVariableGA(
         sampling=sampling, 
         output=MultiObjectiveOutput(), 
-        crossover=off)#, survival=survival)
+        survival=survival)
     try:
         res = minimize(
             evo_problem,
