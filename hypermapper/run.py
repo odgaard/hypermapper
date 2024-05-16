@@ -64,7 +64,7 @@ def optimize(
     sys.stdout.write_to_logfile("\n")
 
     # run optimization method
-    if settings["optimization_method"] in ["bayesian_optimization"]:
+    if settings["optimization_method"] == "bayesian_optimization":
         from hypermapper.bo import bo
 
         out = bo.main(settings, black_box_function=black_box_function)
@@ -77,6 +77,11 @@ def optimize(
         from hypermapper.other import exhaustive
 
         data_array = exhaustive.main(settings, black_box_function=black_box_function)
+
+    elif settings["optimization_method"] == "evolutionary_optimization":
+        from hypermapper.other import evolution
+        data_array = evolution.main(settings, black_box_function=black_box_function)
+
     else:
         print("Unrecognized optimization method:", settings["optimization_method"])
         raise SystemExit

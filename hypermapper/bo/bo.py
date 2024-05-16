@@ -38,7 +38,6 @@ def main(settings, black_box_function=None):
     settings = settings_check_bo(settings, black_box_function)
     param_space = space.Space(settings)
     initialize_output_data_file(settings, param_space.all_names)
-
     if "feasible_output" in settings:
         enable_feasible_predictor = settings["feasible_output"][
             "enable_feasible_predictor"
@@ -274,6 +273,7 @@ def main(settings, black_box_function=None):
                     best_values = torch.min(
                         tmp_feasible_data_array.metrics_array, dim=0
                     )[0]
+                    
                     best_configuration = optimize_acq(
                         settings=settings,
                         param_space=param_space,

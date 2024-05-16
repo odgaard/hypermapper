@@ -9,6 +9,7 @@ from hypermapper.param.parameters import Parameter
 def evaluate_constraints(
     constraints: List[str],
     configurations: Dict[str, List[Any]],
+    return_each_constaint: bool = False,
 ) -> List[bool]:
     """
     Checks configuration feasibility
@@ -41,12 +42,19 @@ def evaluate_constraints(
                     for j in range(n_configurations)
                 ]
 
-    feasible = np.array([True for x in range(n_configurations)])
-    for constraint in constraints:
-        feasible = feasible & ne.evaluate(
-            constraint, {**configurations, **permutation_configurations}
-        )
-    return list(feasible)
+    if return_each_constaint:
+        feasible = np.ones((n_configurations, len(constraints))).astype(bool)
+        for c_idx, constraint in enumerate(constraints):
+            res = ne.evaluate(constraint, {**configurations, **permutation_configurations})
+            feasible[:, c_idx] = res
+        return feasible
+    else:
+        feasible = np.array([True for x in range(n_configurations)])
+        for constraint in constraints:
+            feasible = feasible & ne.evaluate(
+                constraint, {**configurations, **permutation_configurations}
+            )
+        return list(feasible)
 
 
 def filter_conditional_values(

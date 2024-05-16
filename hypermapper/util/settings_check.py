@@ -42,3 +42,29 @@ def settings_check_bo(
         raise SystemExit
 
     return settings
+
+
+
+def settings_check_evo(
+    settings: Dict, black_box_function: Union[None, Callable]
+) -> Dict:
+    """
+    Initial consistency checks for BO.
+
+    Input:
+        - settings: The settings dict for the run.
+        - black_box_function: The black box function to optimize.
+    Returns:
+        - updated settings
+    """
+
+    # Check if some parameters are correctly defined
+    if settings["hypermapper_mode"]["mode"] == "default":
+        if black_box_function is None:
+            print("Error: the black box function must be provided")
+            raise SystemExit
+        if not callable(black_box_function):
+            print("Error: the black box function parameter is not callable")
+            raise SystemExit
+
+    return settings

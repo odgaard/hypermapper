@@ -502,7 +502,9 @@ class Space:
             - "original" : List[List[Any]]
             - "01" : torch.tensor
         """
-
+        if from_type == None:
+            return data
+        
         if parameters is None:
             parameters = self.parameters
 
@@ -612,6 +614,7 @@ class Space:
         beginning_of_time: int,
         settings: Dict,
         black_box_function: Optional[Callable] = None,
+        convert_form: str = "internal",
     ):
         """
         Run a set of configurations in one of Hypermappers modes. Each time a configuration is run, it is also saved to the output file.
@@ -631,17 +634,22 @@ class Space:
                 black_box_function,
                 beginning_of_time,
                 settings["output_data_file"],
+                convert_form=convert_form,
             )
             self.print_data_array(data_array)
 
         elif settings["hypermapper_mode"]["mode"] == "client-server":
             print("Running on client-server mode.")
             data_array = self.run_configurations_client_server(
-                configurations, settings["output_data_file"]
+                configurations, settings["output_data_file"], convert_form=convert_form,
             )
         elif settings["hypermapper_mode"]["mode"] == "grpc":
             data_array = self.run_configurations_grpc(
-                configurations, settings["output_data_file"], settings["hypermapper_mode"]["server_addresses"])
+                configurations, 
+                settings["output_data_file"], 
+                settings["hypermapper_mode"]["server_addresses"],
+                convert_form=convert_form,
+                )
         if torch.any(torch.isnan(data_array.metrics_array)) or torch.any(
             torch.isnan(data_array.metrics_array)
         ):
@@ -677,7 +685,7 @@ class Space:
                 metric_results = []
                 feasible = response.feasible.value
                 for metric in response.metrics:
-                    print(self.application_name, metric.values[0])
+                    #print(self.application_name, metric.values[0])
                     if response.feasible.value is False or (("carl" not in self.application_name and "intersect" not in self.application_name) and metric.values[0] == 0.0):
                         metric_results.append([100000.0])
                         feasible = False
@@ -694,7 +702,7 @@ class Space:
                 if len(metric) != 1:
                     config_metrics.append(metric)
             tensor_metrics_list.append(config_metrics)
-        print("server_metrics_list:", server_metrics_list)
+        #print("server_metrics_list:", server_metrics_list)
         return {
             'hostname': [server_address] * len(server_configs_grpc),
             'metrics': server_metrics_list,
@@ -728,7 +736,7 @@ class Space:
             config_index = end_index  # Update the index for next iteration
         return server_args
 
-    def run_configurations_grpc(self, configurations: torch.Tensor, output_data_file: str, server_addresses: List[str]):
+    def run_configurations_grpc(self, configurations: torch.Tensor, output_data_file: str, server_addresses: List[str], convert_form: str = "internal"):
 
         def value_to_param(value, param_type):
             if param_type == 'ordinal':
@@ -751,10 +759,8 @@ class Space:
                 tuple_value = ast.literal_eval(value)
                 return cs.Parameter(permutation_param=cs.PermutationParam(values=list(tuple_value)))
             raise ValueError(f"Unknown parameter type: {param_type}")
-
-        config_list = configurations.tolist()
-        config_list = self.convert(configurations, "internal", "string")
-
+        
+        config_list = self.convert(configurations, convert_form, "string")
         #random.shuffle(config_list)
 
         file_names = output_data_file.split(".")
@@ -792,12 +798,8 @@ class Space:
 
         results = []
 
-        print(len(config_dicts_grpc))
-        print(len(new_config_list))
-
         for i in range(len(config_list)):
             server_args = self.calculate_server_args(config_dicts_grpc, server_addresses, output_data_file, i, i+1)
-            print(len(server_args))
             results.append(self.process_server_configs(server_args[0][0], server_args[0][1], server_args[0][2], server_args[0][3]))
 
         new_metric_results = []
@@ -815,17 +817,12 @@ class Space:
         all_timestamps = torch.cat([result['timestamps'] for result in results])
         all_feasibility = torch.cat([result['feasibility'] for result in results])
 
-        print(new_config_list)
-        print(configurations)
 
-        new_conf = Tensor([[eval(param[1]) for param in config] for config in new_config_list])
-
-        new_conf = new_conf.to(torch.float64)
-        print(new_conf)
+        #new_conf = Tensor([[eval(param[1]) for param in config] for config in new_config_list])
 
         new_data_array = DataArray(
-            #configurations,
-            new_conf,
+            configurations,
+            #new_conf,
             ##Tensor([[param[1] for param in config] for config in new_config_list]),
             all_metrics,
             all_timestamps,
@@ -846,6 +843,7 @@ class Space:
         self,
         configurations: torch.Tensor,
         output_data_file: str,
+        convert_form: str = "internal"
     ):
         """
         Run a set of configurations in client-server mode under the form of a list of configurations.
@@ -865,7 +863,7 @@ class Space:
         str_header = str_header[:-1] + "\n"
         sys.stdout.write_protocol(str_header)
 
-        str_configurations = self.convert(configurations, "internal", "string")
+        str_configurations = self.convert(configurations, convert_form, "string")
         for idx, configuration in enumerate(str_configurations):
             sys.stdout.write_protocol(",".join(configuration) + "\n")
 
@@ -923,7 +921,7 @@ class Space:
             print(ve)
             raise SystemError
 
-        new_configurations = self.convert(new_configurations, "string", "internal")
+        new_configurations = self.convert(new_configurations, "string", convert_form)
         timestamps = torch.tensor([self.current_milli_time()] * len(configurations))
         new_data_array = DataArray(new_configurations, metrics, timestamps, feasible)
         write_data_array(self, new_data_array, output_data_file)
@@ -935,6 +933,7 @@ class Space:
         black_box_function: Callable,
         beginning_of_time: float,
         output_data_file: str,
+        convert_form: str = "internal"
     ) -> DataArray:
         """
         Run a list of configurations.
@@ -945,7 +944,7 @@ class Space:
             - beginning_of_time: time from the beginning of the Hypermapper design space exploration.
             - output_data_file: path to the output file.
         """
-        original_configurations = self.convert(configurations, "internal", "original")
+        original_configurations = self.convert(configurations, convert_form, "original")
         objective_values = []
         timestamps = []
         idx = 0
